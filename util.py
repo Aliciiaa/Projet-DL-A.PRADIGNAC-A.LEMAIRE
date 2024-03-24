@@ -7,6 +7,9 @@ import numpy as np
 import torch.nn as nn
 import torch.optim as optim
 import time
+import random
+import ipywidgets as widgets
+from IPython.display import display
 from train import train_loop
 from model import Architecture_Pixel,ResidualBlock_CNN
 
@@ -197,9 +200,24 @@ def afficher_train_page_modele(device):
         
         st.title('Visualisation de nos résultats sur le testset')
         #affiche des images du testest et les prédictions 
+        
         l1, l2 = viz_im(model,p,device)
         display_images_in_line(l1,'image réelle')
         display_images_in_line(l2,'image prédite')
+        
+        st.title('image tronquée')
+        
+        choix = st.number_input('combien de pourcentage d\'image voulez vous cacher', min_value=50, max_value=100, value=50, step=25)
+        
+        if dataset =='MNIST':
+            pixel=int(28- (28*choix/100))
+            completion(testset, pixel, model, device, p)
+        else:
+            pixel=int(32- (32*choix/100))
+        
+        
+        
+       
     
 def viz_im(model, p, device):
    """
@@ -223,7 +241,7 @@ def viz_im(model, p, device):
    """
    global trainloader, testloader, trainset, testset, mean, std, dataset
 
-   denorm = transforms.Normalize(mean = [-0.4915/0.2470, -0.4823/0.2435, -0.4468/0.2616], std = [1/0.2470, 1/0.2435, 1/0.2616])
+   
    list1 = []
    list2 = []
    rand = torch.randint(0, 625, (4,))
@@ -250,6 +268,7 @@ def viz_im(model, p, device):
             image_hat = y_pred.reshape(28,28)
             list2.append(image_hat)
         else:
+            denorm = transforms.Normalize(mean = [-0.4915/0.2470, -0.4823/0.2435, -0.4468/0.2616], std = [1/0.2470, 1/0.2435, 1/0.2616])
             image_true = (denorm(image)*255).to(torch.int)#Pixel values are normalized, so we need to denormalize them to obtain the original values (0-255)
             image_true = image_true.permute(1, 2, 0)
             list1.append(image_true)
@@ -299,6 +318,95 @@ def display_images_in_line(image_list, title):
       plt.imshow(image_tensor.squeeze(), cmap = 'gray')
       plt.title(title)
       plt.axis('off')
+      plt.close
    st.pyplot(fig)
     
-                 
+
+def completion(testset, pixel, model, device, p):
+    """
+        Function for the image completion vizualization.
+
+        Parameters
+        ----------
+        testset : torchvision.datasets
+            Test dataset
+        pixel : int
+            The pixel from which to hide the image.
+        model : nn.module
+            The trained model.
+        device : string
+            The device to use.
+        p : int
+            Number of residual blocks.
+    """
+    denorm = transforms.Normalize(mean = [-0.4915/0.2470, -0.4823/0.2435, -0.4468/0.2616], std = [1/0.2470, 1/0.2435, 1/0.2616])
+    x = random.randint(0, 9999) #retrieve a test set image
+    image,_  = testset[x] 
+    if dataset=='MNIST':
+        image_trunc = image
+        image_trunc[:,pixel:,:] = 0 #hidden part of the image
+
+        #image tronquée
+        image_trunc_plot = image_trunc.reshape(28, 28)
+        fig = plt.figure(figsize=(2, 2))
+        plt.imshow(image_trunc_plot , cmap = 'gray')
+        plt.title('Image du jeu de données')
+        plt.show()
+        st.pyplot(fig)
+
+        for i in np.arange(pixel,28):
+            for j in range(28):
+                y = model(image_trunc.to(device),p)
+                probs = y[ :, i, j]  #Select probabilities for the current pixel
+
+                pixel_value = torch.multinomial(probs, 1)  #Sample a pixel value from the probabilities
+
+                image_trunc[ :, i, j] = (pixel_value/255 - mean[0])/std[0] 
+
+        image_trunc_plot = image_trunc.reshape(28, 28)
+        fig = plt.figure(figsize=(2, 2))
+        plt.imshow(image_trunc_plot , cmap = 'gray')
+        plt.title('Image prédite')
+        plt.show()
+        st.pyplot(fig)
+    '''
+    else:
+        image_trunc = image
+       
+        image_trunc[:,pixel:,:] = 0 #hidden part of the image
+
+        #image tronquée
+        image_trunc_plot = (denorm(image_trunc)*255).to(torch.int)
+        image_trunc_plot = torch.permute(image_trunc_plot,(1,2,0))
+        fig = plt.figure(figsize=(2, 2))
+        plt.imshow(image_trunc_plot )
+        plt.title('Image du jeu de données')
+        plt.show()
+        st.pyplot(fig)
+
+        yr_pred = np.zeros(32,32) #Channels RGB
+        yg_pred = np.zeros(32,32)
+        yb_pred = np.zeros(32,32)
+        for i in np.arange(pixel,32):
+            for j in range(32):
+                y = model(image_trunc.to(device),p)
+                probs1 = y[ 0, i, j]  
+                yr_pred[i,j] = torch.multinomial(probs1, 1)
+
+                probs2 = y[ 1, i, j]  
+                yg_pred  = torch.multinomial(probs2, 1)
+
+                probs3 = y[ 2, i, j]  
+                yg_pred  = torch.multinomial(probs3, 1)
+
+                y_pred = torch.stack([torch.tensor(yr_pred),torch.tensor(yg_pred) ,torch.tensor(yb_pred)]).to(torch.int)
+                y_pred_norm = (y_pred /255 - mean)/std
+                image_trunc[ :, i, j] = y_pred[:,i,j]
+        
+        image_trunc_plot = image_trunc.reshape(32, 32)
+        fig = plt.figure(figsize=(2, 2))
+        plt.imshow(image_trunc_plot , cmap = 'gray')
+        plt.title('Image prédite')
+        plt.show()
+        st.pyplot(fig)
+        '''
