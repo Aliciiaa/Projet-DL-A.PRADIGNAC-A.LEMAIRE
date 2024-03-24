@@ -98,8 +98,7 @@ def afficher_page_accueil():
     st.title("Bienvenue dans notre projet de modèle génératif d'image")
     st.write(' Nous explorerons le modèle Pixel CNN sur les jeux de données MNIST et CIFAR-10.')
 
-    # Ajoutez d'autres éléments de la page d'accueil, tels que des images explicatives, etc.
-    # ...
+
 
 def afficher_choix_jeux_de_donnees():
     global trainloader, testloader, trainset, testset, mean, std,dataset
@@ -117,27 +116,33 @@ def afficher_choix_jeux_de_donnees():
         st.write('Chargement du jeu de données CIFAR-10...')
         trainloader,testloader,trainset,testset,mean,std = load_show_cifar10()
     
-def afficher_train_page_modele():
+
+
+def afficher_train_page_modele(device):
     global trainloader, testloader, trainset, testset, mean, std,dataset
     
     st.title('Pixel CNN')
+    
+
+    st.write('la Loss utilisé est la negative log likelihood')
+    st.write("Optimizer = Adam")
     criterion = nn.NLLLoss()
     optimizer = optim.Adam
+
     if dataset == 'MNIST' : 
         in_channels = 1 
         out_channels = 256
-        file_name = 'user_PixelCNN_MNIST.pth'
+        file_weight = 'PixelCNN_MNIST.pth'
     else : 
         in_channels = 3 
         out_channels = 3*256
-        file_name = 'user_PixelCNN_CIFAR-10.pth'
+        file_weight = 'PixelCNN_CIFAR-10.pth'
+
     # Afficher les valeurs des variables globales
     st.write(f'Vous avez choisi le jeu de données {dataset}')
-    st.write(' Voulez vous utiliser notre mmodèles déjà entrainer ou voulez vous entrainer le votre')
-
 
     # Options pour l'utilisateur
-    option = st.radio("Choisissez une option :", ( "Utiliser un modèle pré-entraîné","Entraîner un nouveau modèle"))
+    option = st.radio("Choisissez une option :", ( "Entraîner un nouveau modèle","Utiliser un modèle pré-entraîné"))
     if option == "Entraîner un nouveau modèle" :
 
         # Interface pour définir les paramètres d'entraînement
@@ -145,28 +150,129 @@ def afficher_train_page_modele():
         h = st.slider("Nombre de neurones :", min_value=1, max_value=128, value=5, step=1)
         lr = st.slider("Taux d'apprentissage :", min_value=0.001, max_value=0.1, value=0.01, step=0.001)
         p = st.slider("Nombre de blocs résiduels : ", min_value=1, max_value=8, value=2, step=1)
-                 
-        use_cuda = st.checkbox("Utiliser CUDA si disponible pour l'entraînement des modèles")
 
-        if use_cuda and torch.cuda.is_available():
-            device = torch.device("cuda")
-            st.write("Entraînement des modèles sur CUDA.")
-        else:
-            device = torch.device("cpu")
-            st.write(" Entraînement des modèles sur CPU.")
         go =st.checkbox("Commencer l'entraînement")
+
         if go:
             start_time = time.time()
             model = train_loop(Architecture_Pixel, in_channels, out_channels, h, ResidualBlock_CNN, nn.LogSoftmax(), p, optimizer, criterion, device, lr, trainloader, epochs,mean,std )
             
             st.write(f"Training with {device} lasts: {np.round((time.time()-start_time)/60,2)} minutes\n")
             # Enregistrer l'architecture et les poids du modèle
-            torch.save(model.state_dict(), file_name)
+            torch.save(model.state_dict(), 'user.pth')
             #Create an instance of the class
             model = Architecture_Pixel(in_channels, out_channels, h, ResidualBlock_CNN, nn.Softmax(dim=0)).to(device = device)
             
-            model.load_state_dict(torch.load(file_name)) #import model weights
-            return(model)
+            model.load_state_dict(torch.load('user.pth'), map_location=torch.device(device)) #import model weights
 
+
+        
+            st.title('Visualisation de nos résultats')
+            l1, l2 = viz_im(model,p,device)
+            display_images_in_line(l1,'image réelle')
+            display_images_in_line(l2,'image prédite')
+            
+
+    else :
+        #modèle déjà entraîner
+        if dataset == 'MNIST' :
+            st.write('Voici les paramètre pour du modèle')
+            st.write("Nombre d'époques = 10")
+            st.write("Nombre Nombre de neurones = 5")
+            st.write("Learning rate = 0.09 ")
+            st.write("Nombre de blocs résiduels = 3 ")
+            h = 5
+            p = 3
         else :
-            st.write(f'v')
+            st.write('Voici les paramètre pour du modèle')
+            st.write("Nombre d'époques = 20")
+            st.write("Nombre Nombre de neurones = 5")
+            st.write("Learning rate = 0.07 ")
+            st.write("Nombre de blocs résiduels = 3 ")
+            h = 5
+            p = 3
+        #Create an instance of the class
+        model = Architecture_Pixel(in_channels, out_channels, h, ResidualBlock_CNN, nn.Softmax(dim=0)).to(device )
+        model.load_state_dict(torch.load(file_weight, map_location=torch.device(device)))  #import model weights
+        
+        st.title('Visualisation de nos résultats')
+        #affiche des images du testest et les prédictions 
+        l1, l2 = viz_im(model,p,device)
+        display_images_in_line(l1,'image réelle')
+        display_images_in_line(l2,'image prédite')
+    
+def viz_im(model, p, device):
+   """
+      Creates and returns 2 lists of images from a testloader: one containing real images, the other containing model predictions.
+
+      Parameters
+      ----------
+      model : nn.Module
+         The trained model.   
+      p : int
+         Number of residual blocks.
+      device : string
+         The device to use.
+      
+      Returns
+      -------
+      list1 : tensor
+         List with the true values of each pixel for 4 random testloader images.
+      list2 : tensor
+         List with predictions for each pixel in 4 random testloader images.
+   """
+   global trainloader, testloader, trainset, testset, mean, std, dataset
+
+   list1 = []
+   list2 = []
+   rand = torch.randint(0, 625, (4,))
+
+   for i in rand: 
+      image, _ = testset[i]
+
+      #Real image
+      image_true = np.ravel(image.numpy())
+      image_true = image_true.reshape(28, 28)
+
+      list1.append(image_true)
+
+      #Prediction
+      y = model(image.to(device), p)
+      y = torch.reshape(y, (256, 784)) #reshape to get a 1d vector, but it still has the 256 channels
+
+      y_pred = np.zeros(784) #our future image
+
+      for i in range(784):
+         probs = y[:, i]
+         y_pred[i] = torch.multinomial(probs, 1)
+   
+      image_hat = y_pred.reshape(28,28)
+      list2.append(image_hat)
+
+   return(list1, list2)
+
+
+
+def display_images_in_line(image_list, title):
+   """
+      Displays images from a list.
+
+      Parameters
+      ----------
+      image_list : list
+         A list of images to view.
+      title : string
+         The title of the image to view.
+   """
+   fig = plt.figure(figsize=(len(image_list)*2, 2))
+   for i, image_tensor in enumerate(image_list):
+      
+      plt.subplot(1, len(image_list), i+1)
+      plt.imshow(image_tensor.squeeze(), cmap = 'gray')
+      plt.title(title)
+      plt.axis('off')
+   st.pyplot(fig)
+
+   
+    
+                 

@@ -1,6 +1,7 @@
-from util import  load_show_mnist, load_show_cifar10, afficher_page_accueil, afficher_choix_jeux_de_donnees, afficher_train_page_modele
+from util import  afficher_page_accueil, afficher_choix_jeux_de_donnees, afficher_train_page_modele, afficher_visualisation
 import streamlit as st
 import numpy as np
+import torch
 
 
 
@@ -13,6 +14,9 @@ def main() :
     mean = None
     std = None
     dataset = None
+    model = None
+    p=None
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     st.sidebar.title('Navigation')
     # Ajoutez les différentes sections de votre application à la barre latérale
     section = st.sidebar.radio('Sections', ('Accueil',  'Modèle'))
@@ -22,7 +26,8 @@ def main() :
         afficher_choix_jeux_de_donnees()
 
     elif section == 'Modèle':
-        model = afficher_train_page_modele()
+        afficher_train_page_modele(device)
+        
         
     
 
