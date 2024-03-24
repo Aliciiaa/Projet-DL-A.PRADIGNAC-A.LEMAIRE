@@ -1,28 +1,3 @@
-in_channels = 3
-out_channels = 3*256
-h = 5
-p = 3
-
-model = Architecture_Pixel(in_channels, out_channels, h, ResidualBlock_CNN, nn.Softmax(dim=0)).to(device = device) #création d'une instance de la classe
-model.load_state_dict(torch.load('/content/PixelCNN_CIFAR-10.pth'))#importation des poids
-
-
-denorm = transforms.Normalize(mean = [-0.4915/0.2470, -0.4823/0.2435, -0.4468/0.2616], std = [1/0.2470, 1/0.2435, 1/0.2616])
-image_denorm = denorm(image)
-
-
-in_channels = 3
-out_channels = 3*256
-h = 5
-p = 3
-
-model = Architecture_Pixel(in_channels, out_channels, h, ResidualBlock_CNN, nn.LogSoftmax(dim=0)).to(device = device) #création d'une instance de la classe
-model.load_state_dict(torch.load('/content/PixelCNN_CIFAR-10.pth'))#importation des poids
-
-
-denorm = transforms.Normalize(mean = [-0.4915/0.2470, -0.4823/0.2435, -0.4468/0.2616], std = [1/0.2470, 1/0.2435, 1/0.2616])
-
-
 def viz_im(model, p, device):
    """
       Creates and returns 2 lists of images from a testloader: one containing real images, the other containing model predictions.
@@ -44,6 +19,8 @@ def viz_im(model, p, device):
          List with predictions for each pixel in 4 random testloader images.
    """
    #global trainloader, testloader, trainset, testset, mean, std, dataset
+   
+   denorm = transforms.Normalize(mean = [-0.4915/0.2470, -0.4823/0.2435, -0.4468/0.2616], std = [1/0.2470, 1/0.2435, 1/0.2616])
 
    list1 = []
    list2 = []
@@ -55,8 +32,7 @@ def viz_im(model, p, device):
       #Real image
       # Génération de l'image
       
-      image_true = torch.round(denorm(image)*255).to(torch.int)#Pixel values are normalized, so we need to denormalize them to obtain the original values (0-255)
-      image_true = image_true.reshape(3, 32, 32)
+      image_true = (denorm(image)*255).to(torch.int)#Pixel values are normalized, so we need to denormalize them to obtain the original values (0-255)
       image_true = image_true.permute(1, 2, 0)
       list1.append(image_true)
 
@@ -104,8 +80,3 @@ def display_images_in_line(image_list, title):
       plt.title(title)
       plt.axis('off')
    plt.show()
-
-
-l1, l2 = viz_im(model, p, device)
-display_images_in_line(l1, 'image reelle')
-display_images_in_line(l2, 'image pred')
