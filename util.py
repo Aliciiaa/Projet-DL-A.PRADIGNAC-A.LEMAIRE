@@ -195,7 +195,7 @@ def afficher_train_page_modele(device):
         model = Architecture_Pixel(in_channels, out_channels, h, ResidualBlock_CNN, nn.Softmax(dim=0)).to(device )
         model.load_state_dict(torch.load(file_weight, map_location=torch.device(device)))  #import model weights
         
-        st.title('Visualisation de nos résultats')
+        st.title('Visualisation de nos résultats sur le testset')
         #affiche des images du testest et les prédictions 
         l1, l2 = viz_im(model,p,device)
         display_images_in_line(l1,'image réelle')
@@ -223,31 +223,59 @@ def viz_im(model, p, device):
    """
    global trainloader, testloader, trainset, testset, mean, std, dataset
 
+   denorm = transforms.Normalize(mean = [-0.4915/0.2470, -0.4823/0.2435, -0.4468/0.2616], std = [1/0.2470, 1/0.2435, 1/0.2616])
    list1 = []
    list2 = []
    rand = torch.randint(0, 625, (4,))
-
    for i in rand: 
-      image, _ = testset[i]
+        image, _ = testset[i]
 
-      #Real image
-      image_true = np.ravel(image.numpy())
-      image_true = image_true.reshape(28, 28)
+        #Real image
+        if dataset == 'MNIST' : 
+            image_true = np.ravel(image.numpy())
+            image_true = image_true.reshape(28, 28)
 
-      list1.append(image_true)
+            list1.append(image_true)
 
-      #Prediction
-      y = model(image.to(device), p)
-      y = torch.reshape(y, (256, 784)) #reshape to get a 1d vector, but it still has the 256 channels
+            #Prediction
+            y = model(image.to(device), p)
+            y = torch.reshape(y, (256, 784)) #reshape to get a 1d vector, but it still has the 256 channels
 
-      y_pred = np.zeros(784) #our future image
+            y_pred = np.zeros(784) #our future image
 
-      for i in range(784):
-         probs = y[:, i]
-         y_pred[i] = torch.multinomial(probs, 1)
-   
-      image_hat = y_pred.reshape(28,28)
-      list2.append(image_hat)
+            for i in range(784):
+                probs = y[:, i]
+                y_pred[i] = torch.multinomial(probs, 1)
+
+            image_hat = y_pred.reshape(28,28)
+            list2.append(image_hat)
+        else:
+            image_true = (denorm(image)*255).to(torch.int)#Pixel values are normalized, so we need to denormalize them to obtain the original values (0-255)
+            image_true = image_true.permute(1, 2, 0)
+            list1.append(image_true)
+
+            #Prediction
+            y = model(image.to(device), p)
+            y = torch.reshape(y, (256, 3, 1024)) #reshape to get a 1d vector, but it still has the 256 channels
+
+            yr_pred = np.zeros(1024) #Channels RGB
+            yg_pred = np.zeros(1024)
+            yb_pred = np.zeros(1024)
+
+            for i in range(1024):
+                probs_r = y[:, 0, i]
+                yr_pred[i] = torch.multinomial(probs_r, 1)
+                probs_g = y[:, 1, i]
+                yg_pred[i] = torch.multinomial(probs_g, 1)
+                probs_b = y[:, 2, i]
+                yb_pred[i] = torch.multinomial(probs_b, 1)
+
+            y_pred = torch.stack([torch.tensor(yr_pred),torch.tensor(yg_pred) ,torch.tensor(yb_pred)]).to(torch.int)
+
+            image_hat = torch.reshape(y_pred, (3, 32, 32))
+            image_hat = image_hat.permute(1, 2, 0)
+            list2.append(image_hat)
+     
 
    return(list1, list2)
 
