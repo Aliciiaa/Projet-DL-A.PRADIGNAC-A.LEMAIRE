@@ -8,8 +8,6 @@ import torch.nn as nn
 import torch.optim as optim
 import time
 import random
-import ipywidgets as widgets
-from IPython.display import display
 from train import train_loop
 from model import Architecture_Pixel,ResidualBlock_CNN
 
@@ -145,7 +143,7 @@ def afficher_train_page_modele(device):
     st.title('Pixel CNN')
     
 
-    st.write('la Loss utilisé est la negative log likelihood')
+    st.write('la Loss utilisée est la negative log-likelihood')
     st.write("Optimizer = Adam")
     criterion = nn.NLLLoss()
     optimizer = optim.Adam
@@ -197,15 +195,15 @@ def afficher_train_page_modele(device):
     else :
         #modèle déjà entraîner
         if dataset == 'MNIST' :
-            st.write('Voici les paramètre pour du modèle')
-            st.write("Nombre d'époques = 10")
+            st.write('Voici les paramètre du modèle, pour le jeu de données MNIST')
+            st.write("Nombre d'époques = 20")
             st.write("Nombre Nombre de neurones = 5")
             st.write("Learning rate = 0.09 ")
             st.write("Nombre de blocs résiduels = 3 ")
             h = 5
             p = 3
         else :
-            st.write('Voici les paramètre pour du modèle')
+            st.write('Voici les paramètre du modèle, pour le jeu de données CIFAR-10')
             st.write("Nombre d'époques = 20")
             st.write("Nombre Nombre de neurones = 5")
             st.write("Learning rate = 0.07 ")
@@ -225,7 +223,7 @@ def afficher_train_page_modele(device):
         
         st.title('image tronquée')
         
-        choix = st.number_input('combien de pourcentage d\'image voulez vous cacher', min_value=50, max_value=100, value=50, step=25)
+        choix = st.number_input('Combien de pourcentage d\'image voulez vous cacher', min_value=50, max_value=100, value=50, step=25)
         
         if dataset =='MNIST':
             pixel=int(28- (28*choix/100))
