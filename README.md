@@ -3,7 +3,7 @@
 
 # Projet en Deep Learning
 
-Repo avec du code utile pour le cours de Projet en DL du master Maths & IA de l'Université Paris-Saclay.
+Implémentation du réseau de neurones PixelCNN, tiré de l'article [Kavukcuoglu, A. van den O., Nal Kalchbrenner, Koray. (n.d.). Pixel recurrent neural networks. Pixel Recurrent Neural Networks (arxiv.org)].
 
 ## pre-commit usage
 
